@@ -4,6 +4,7 @@ import requests
 
 
 def send_message(uid, content):
+    print(f"Sending message to {uid}: {content}")  # 添加这行
     data = {
         'msg[sender_uid]': my_uid,
         'msg[receiver_id]': uid,
@@ -28,13 +29,16 @@ def send_message(uid, content):
     }
     url = 'https://api.vc.bilibili.com/web_im/v1/web_im/send_msg'
     resp = requests.post(url, headers=headers, data=data).json()
+    print(resp)
     if resp['code'] == 0:
         return True
     else:
         return False
+    print(f"[DEBUG] Pretending to send message to {uid}: {content}")
 
-
+last_check_timestamp = time.time()
 def get_new_session():
+    global last_check_timestamp
     begin_ts = str(time.time()).replace('.', '')[:-1]
     while True:
         params = {
@@ -48,43 +52,37 @@ def get_new_session():
             'referer': 'https://message.bilibili.com/',
             'user-agent': 'Mozilla/5.0(WindowsNT10.0;Win64;x64)AppleWebKit/537.36(KHTML,likeGecko)Chrome/96.0.4664.110Safari/537.36Edg/96.0.1054.62',
         }
-        get_new_follow()
+        #get_new_follow()
         url = 'https://api.vc.bilibili.com/session_svr/v1/session_svr/new_sessions?'
         resp = requests.get(url, headers=headers, params=params).json()
         session_list = resp['data']['session_list']
+        
         if not session_list:
             time.sleep(4)
             continue
+            
         for session in session_list:
+            message_timestamp = session['last_msg']['timestamp']
             message_key = session['last_msg']['msg_key']
-            if message_key in msg_key_list:
-                continue
+            if message_timestamp <= last_check_timestamp:
+                continue  # 如果消息是在上次检查之前发送的，就跳过
             uid = session['talker_id']
             begin_ts = session['session_ts']
             message = json.loads(session['last_msg']['content'])['content']
-            timestamp = session['last_msg']['timestamp']
-            time_ = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp))
+            time_ = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(message_timestamp))
             sender = uid
             if uid == my_uid:
                 sender = 'Me'
             log = 'Time: {}\nMessage_key: {}\nSender: {}\nMessage: {}\n\n'.format(time_, message_key, sender, message)
-            with open('./信息储存/私信储存/{}.txt'.format(uid), 'a', encoding='utf-8')as f:
-                f.write(log)
-            with open('./信息储存/已读消息.txt', 'a')as k:
-                k.write('{}-'.format(message_key))
-            msg_key_list.append(message_key)
-            print('uid: {} -*- Time: {} -*- message: {}'.format(uid, time_, message.replace('\n', '')))
-
-            """
-            判断条件以及发送消息在这里
-            """
-            if message == '代码':
-                send_message(uid=uid, content='Gitee仓库: https://gitee.com/bilibili_autumn_leaves/b-station-code')
-            elif message == '1':
-                send_message(uid=uid, content='Gitee仓库: https://gitee.com/bilibili_autumn_leaves/b-station-code')
-
+            print(log)
+            
+            # 在这里，你可以添加一个条件来检查是否需要回复这个消息
+            if uid != my_uid and message_key not in msg_key_list:
+                send_message(uid=uid, content=first_follow_message)
+                msg_key_list.append(message_key) 
+            
+        last_check_timestamp = time.time()  # 更新上次检查的时间戳
         time.sleep(4)
-
 
 def get_new_follow():
     params = {
@@ -110,24 +108,24 @@ def get_new_follow():
             send_message(mid, content=first_follow_message)
             time_ = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))
             print('UID: {} -*- Time: {} -*- Send: 欢迎关注'.format(mid, time_))
-            with open('./信息储存/关注我的.txt', 'a')as f:
+            with open('C:\\UnityProgram\\python-jiaoben\\B站相关\\B站私信回复\\信息储存\\关注我的.txt', 'a')as f:
                 f.write('{}-'.format(mid))
             follow_list.append(mid)
             time.sleep(0.3)
 
 
-my_uid = ''
-csrf = ''
-msg_id = ''
+my_uid = '3493260838308803' #3493260838308803
+csrf = 'cc7e551f6094f0c649daaf0e678d5292'#  cc7e551f6094f0c649daaf0e678d5292
+msg_id = 'cc7e551f6094f0c649daaf0e678d5292'
 
-cookie = open('./信息储存/Cookie.txt', 'r').read()
-file_1 = open('./信息储存/已读消息.txt', 'r').read()
-file_2 = open('./信息储存/关注我的.txt', 'r').read()
+cookie = open('C:\\UnityProgram\\python-jiaoben\\B站相关\\B站私信回复\\信息储存\\Cookie.txt', 'r').read()
+file_1 = open('C:\\UnityProgram\\python-jiaoben\\B站相关\\B站私信回复\\信息储存\\已读消息.txt', 'r').read()
+file_2 = open('C:\\UnityProgram\\python-jiaoben\\B站相关\\B站私信回复\\信息储存\\关注我的.txt', 'r').read()
 
 msg_key_list = file_1.split('-')
 follow_list = file_2.split('-')
 
-first_follow_message = '感谢您的关注,自动回复脚本正在测试\\n回复 1 或者 代码 获取往期视频代码'
+first_follow_message = '‍新地址：https://chat.gpt200.cn \\n电脑/手机浏览器打开就能使用，不需要魔法，打不开可以尝试更换浏览器，或者加V：Reader_Han \\n邀请码写 102744 （可以多获得10000Token）\\n准备好接收你的AI女友吧'
 
 print('---开始运行----')
 get_new_session()
